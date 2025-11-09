@@ -207,3 +207,105 @@ class EstudioImaginologico:
             return np.zeros_like(imgf, dtype=np.uint8)
         norm = (imgf - mn) / (mx - mn) * 255.0
         return np.clip(norm, 0, 255).astype(np.uint8)
+
+    def zoom_and_save(self):
+        
+        try:
+            px, py = self.dicom_manager.get_pixel_spacing()
+            print("\n" + "="*60)
+            print("ZOOM - RECORTE Y REDIMENSIONAMIENTO")
+            print("="*60)
+            print("Secciones: 1=transversal, 2=sagital, 3=coronal")
+            
+            choice = input("Opción (1-3): ").strip()
+            z_len, y_len, x_len = self.volume.shape
+            
+            if choice == '1':
+                z_idx = int(input(f"Índice z [0-{z_len-1}, default={z_len//2}]: ") or z_len//2)
+                img2d = self.volume[max(0, min(z_idx, z_len-1)), :, :]
+                spacing_x, spacing_y = px, py
+            elif choice == '2':
+                x_idx = int(input(f"Índice x [0-{x_len-1}, default={x_len//2}]: ") or x_len//2)
+                img2d = self.volume[:, :, max(0, min(x_idx, x_len-1))]
+                spacing_x, spacing_y = self.dicom_manager.get_slice_thickness(), py
+            elif choice == '3':
+                y_idx = int(input(f"Índice y [0-{y_len-1}, default={y_len//2}]: ") or y_len//2)
+                img2d = self.volume[:, max(0, min(y_idx, y_len-1)), :]
+                spacing_x, spacing_y = self.dicom_manager.get_slice_thickness(), px
+            else:
+                print(" Opción inválida")
+                return
+            
+            plt.figure(figsize=(8,8))
+            plt.imshow(img2d, cmap='gray')
+            plt.title('Imagen seleccionada (observe coordenadas)')
+            plt.colorbar()
+            plt.show()
+
+            print(f"Dimensiones: {img2d.shape[1]}x{img2d.shape[0]} px")
+            coords = input("Coordenadas recorte (x1,y1,x2,y2) [Enter=recorte centrado]: ").strip()
+            
+            if coords:
+                x1, y1, x2, y2 = [int(c) for c in coords.split(',')]
+            else:
+                # recorte centrado por defecto
+                h, w = img2d.shape
+                x1, x2 = w//4, 3*w//4
+                y1, y2 = h//4, 3*h//4
+                print(f"Usando recorte automático: ({x1},{y1},{x2},{y2})")
+
+            # Validaciones de coordenadas
+            if x2 <= x1 or y2 <= y1:
+                print(" Coordenadas inválidas: ancho y alto deben ser positivos.")
+                return
+            if x1 < 0 or y1 < 0 or x2 > img2d.shape[1] or y2 > img2d.shape[0]:
+                print(" Coordenadas fuera del rango de la imagen.")
+                return
+            
+            cropped = img2d[y1:y2, x1:x2]
+            if cropped.size == 0:
+                print(" El recorte está vacío.")
+                return
+            
+            cropped_u8 = self._normalize_to_uint8(cropped)
+            cropped_bgr = cv2.cvtColor(cropped_u8, cv2.COLOR_GRAY2BGR)
+            
+            width_mm = (x2 - x1) * spacing_x
+            height_mm = (y2 - y1) * spacing_y
+            dim_text = f"{width_mm:.1f}mm x {height_mm:.1f}mm"
+            
+            
+            h, w = cropped_bgr.shape[:2]
+            cv2.rectangle(cropped_bgr, (2, 2), (w-3, h-3), (0, 0, 255), 3)
+            cv2.putText(cropped_bgr, dim_text, (10, 30), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            size_str = input("Redimensionar (ancho,alto) [Enter=omitir]: ").strip()
+            if size_str:
+                new_w, new_h = [int(x) for x in size_str.split(',')]
+                resized = cv2.resize(cropped_bgr, (new_w, new_h))
+            else:
+                resized = cropped_bgr
+            
+            fig, axs = plt.subplots(1, 2, figsize=(14, 6))
+            axs[0].imshow(img2d, cmap='gray')
+            axs[0].set_title('Original')
+            rect = plt.Rectangle((x1, y1), x2-x1, y2-y1, linewidth=2, 
+                                edgecolor='red', facecolor='none')
+            axs[0].add_patch(rect)
+            axs[0].axis('off')
+            
+            axs[1].imshow(cv2.cvtColor(resized, cv2.COLOR_BGR2RGB))
+            axs[1].set_title(f'Recorte - {dim_text}')
+            axs[1].axis('off')
+            plt.tight_layout()
+            plt.show()
+            fname = input("Nombre archivo [Enter=omitir]: ").strip()
+            if fname:
+                if not fname.endswith(('.png', '.jpg', '.jpeg')):
+                    fname += '.png'
+                cv2.imwrite(fname, resized)
+                print(f" Guardado: '{fname}'")
+                
+        except Exception as e:
+            print(f" Error: {e}")
