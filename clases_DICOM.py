@@ -342,7 +342,7 @@ class EstudioImaginologico:
                 '3': ('ToZero', cv2.THRESH_TOZERO),
                 '4': ('ToZero Inv', cv2.THRESH_TOZERO_INV),
                 '5': ('Otsu', 'otsu')
-            
+            }
             
             print("\nMétodos de binarización:")
             for k, v in methods.items():
@@ -380,5 +380,90 @@ class EstudioImaginologico:
                     
         except Exception as e:
             print(f" Error: {e}")
-}
+
+
+    def morph_transform(self):
+        try:
+            print("\n" + "="*60)
+            print("TRANSFORMACIÓN MORFOLÓGICA")
+            print("="*60)
+            print("Sección: 1=Transversal, 2=Sagital, 3=Coronal")
+
+            choice = input("Opción (1-3): ").strip()
+            z_len, y_len, x_len = self.volume.shape
+
+           
+            if choice == '1':
+                idx = int(input(f"Índice z [0-{z_len-1}, default={z_len//2}]: ") or z_len//2)
+                img2d = self.volume[max(0, min(idx, z_len-1)), :, :]
+            elif choice == '2':
+                idx = int(input(f"Índice x [0-{x_len-1}, default={x_len//2}]: ") or x_len//2)
+                img2d = self.volume[:, :, max(0, min(idx, x_len-1))]
+            elif choice == '3':
+                idx = int(input(f"Índice y [0-{y_len-1}, default={y_len//2}]: ") or y_len//2)
+                img2d = self.volume[:, max(0, min(idx, y_len-1)), :]
+            else:
+                print(" Opción inválida.")
+                return
+            img_u8 = self._normalize_to_uint8(img2d)
+            if img_u8.size == 0:
+                print(" Imagen vacía, no se puede procesar.")
+                return
+
+           
+            k = int(input("Tamaño kernel (impar, ej: 3,5,7) [3]: ") or "3")
+            if k < 1:
+                print(" Tamaño de kernel inválido.")
+                return
+            if k % 2 == 0:
+                k += 1  # forzar impar
+                print(f"Ajustado a kernel {k}x{k} (impar)")
+
+            
+            ops = {
+                0: ('Erode', cv2.MORPH_ERODE),
+                1: ('Dilate', cv2.MORPH_DILATE),
+                2: ('Open', cv2.MORPH_OPEN),
+                3: ('Close', cv2.MORPH_CLOSE),
+                4: ('Gradient', cv2.MORPH_GRADIENT),
+                5: ('Tophat', cv2.MORPH_TOPHAT),
+                6: ('Blackhat', cv2.MORPH_BLACKHAT)
+            }
+
+            print("\nOperaciones disponibles:")
+            for k_op, (name, _) in ops.items():
+                print(f"  {k_op}) {name}")
+
+            op = int(input("Operación (0-6) [2]: ") or "2")
+            if op not in ops:
+                print(" Operación inválida.")
+                return
+
+       
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k, k))
+            res = cv2.morphologyEx(img_u8, ops[op][1], kernel)
+
+            fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+            axs[0].imshow(img_u8, cmap='gray')
+            axs[0].set_title('Original')
+            axs[0].axis('off')
+
+            axs[1].imshow(res, cmap='gray')
+            axs[1].set_title(f'{ops[op][0]} - kernel={k}x{k}')
+            axs[1].axis('off')
+            plt.tight_layout()
+            plt.show()
+
+            if input("¿Guardar resultado? (s/n): ").strip().lower() == 's':
+                fname = input("Nombre del archivo: ").strip()
+                if fname:
+                    if not fname.endswith('.png'):
+                        fname += '.png'
+                    cv2.imwrite(fname, res)
+                    print(f" Imagen guardada: '{fname}'")
+
+        except Exception as e:
+            print(f" Error en transformación morfológica: {e}")
+
+
             
