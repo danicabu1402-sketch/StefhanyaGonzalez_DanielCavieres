@@ -142,7 +142,7 @@ class EstudioImaginologico:
         self.shape = self.volume.shape
         
         print(f"[EstudioImaginologico] {self.study_modality} - {self.study_description}")
-        
+
     def _calc_duration_seconds(self, study_time: str, series_time: str) :
         
         try:
@@ -154,3 +154,47 @@ class EstudioImaginologico:
             return (se - st).total_seconds()  
         except Exception:
             return None
+ def show_orthogonal_slices(self, index_z: Optional[int] = None):
+        
+        from scipy.ndimage import zoom 
+
+        z_len, y_len, x_len = self.volume.shape
+        index_z = index_z if index_z else z_len // 2
+
+        try:
+            px, py = self.dicom_manager.get_pixel_spacing()
+            pz = self.dicom_manager.get_slice_thickness()
+        except RuntimeError:
+            print("[EstudioImaginologico] Advertencia: No se pudieron obtener métricas espaciales. Usando (1,1,1).")
+            px, py, pz = 1.0, 1.0, 1.0
+
+        transversal = self.volume[index_z, :, :]
+        sagital = self.volume[:, :, x_len // 2]
+        coronal = self.volume[:, y_len // 2, :]
+
+      
+        scale_sagital_z = pz / py 
+        sagital_interp = zoom(sagital, (scale_sagital_z, 1.0), order=3)
+        
+       
+        scale_coronal_z = pz / px
+        coronal_interp = zoom(coronal, (scale_coronal_z, 1.0), order=3)
+        
+       
+        fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+
+        axs[0].imshow(transversal, cmap='gray', aspect='equal')
+        axs[0].set_title('Transversal (Axial)', fontsize=12, fontweight='bold')
+
+        axs[1].imshow(sagital_interp, cmap='gray', aspect='auto', origin='lower')
+        axs[1].set_title('Sagital', fontsize=12, fontweight='bold')
+        axs[1].axis('off')
+
+        axs[2].imshow(coronal_interp, cmap='gray', aspect='auto', origin='lower')
+        axs[2].set_title('Coronal', fontsize=12, fontweight='bold')
+        axs[2].axis('off')
+
+        plt.suptitle(f'{self.study_modality} - {self.study_description}', 
+                     fontsize=14, fontweight='bold')
+        plt.tight_layout()
+        plt.show()
