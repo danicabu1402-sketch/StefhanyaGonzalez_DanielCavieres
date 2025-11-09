@@ -93,3 +93,19 @@ class DicomManager:
             raise RuntimeError("Ejecute build_volume() primero.")
         self.metadata_df.to_csv(out_path, index=False)
         print(f"[DicomManager]  CSV guardado: '{out_path}'")
+
+    def get_pixel_spacing(self) -> Tuple[float, float]:
+
+        if not self.sorted_slices_info:
+            raise RuntimeError("Ejecute build_volume() primero.")
+        ds = self.sorted_slices_info[0][1]
+        ps = getattr(ds, "PixelSpacing", None)
+        return (float(ps[0]), float(ps[1])) if ps else (1.0, 1.0)
+
+    def get_slice_thickness(self) -> float:
+        
+        if not self.sorted_slices_info:
+            raise RuntimeError("Ejecute build_volume() primero.")
+        ds = self.sorted_slices_info[0][1]
+        st = getattr(ds, "SliceThickness", None)
+        return float(st) if st else 1.0
