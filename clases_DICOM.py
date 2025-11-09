@@ -309,3 +309,76 @@ class EstudioImaginologico:
                 
         except Exception as e:
             print(f" Error: {e}")
+
+
+    def segment_and_show(self):
+        try:
+            print("\n" + "="*60)
+            print("SEGMENTACIÓN")
+            print("="*60)
+            
+            choice = input("Sección (1=transversal, 2=sagital, 3=coronal): ").strip()
+            z_len, y_len, x_len = self.volume.shape
+            
+            if choice == '1':
+                idx = int(input(f"Índice z [0-{z_len-1}]: ") or z_len//2)
+                img2d = self.volume[max(0, min(idx, z_len-1)), :, :]
+            elif choice == '2':
+                idx = int(input(f"Índice x [0-{x_len-1}]: ") or x_len//2)
+                img2d = self.volume[:, :, max(0, min(idx, x_len-1))]
+            elif choice == '3':
+                idx = int(input(f"Índice y [0-{y_len-1}]: ") or y_len//2)
+                img2d = self.volume[:, max(0, min(idx, y_len-1)), :]
+            else:
+                print(" Opción inválida")
+                return
+            
+            img_u8 = self._normalize_to_uint8(img2d)
+            
+            methods = {
+                '0': ('Binary', cv2.THRESH_BINARY),
+                '1': ('Binary Inv', cv2.THRESH_BINARY_INV),
+                '2': ('Truncate', cv2.THRESH_TRUNC),
+                '3': ('ToZero', cv2.THRESH_TOZERO),
+                '4': ('ToZero Inv', cv2.THRESH_TOZERO_INV),
+                '5': ('Otsu', 'otsu')
+            
+            
+            print("\nMétodos de binarización:")
+            for k, v in methods.items():
+                print(f"  {k}) {v[0]}")
+            
+            method = input("Método: ").strip()
+            if method not in methods:
+                print(" Método inválido")
+                return
+            
+            if methods[method][1] == 'otsu':
+                _, thresh = cv2.threshold(img_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            else:
+                thr = int(input("Umbral (0-255) [128]: ") or "128")
+                _, thresh = cv2.threshold(img_u8, thr, 255, methods[method][1])
+            
+            fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+            axs[0].imshow(img_u8, cmap='gray')
+            axs[0].set_title('Original')
+            axs[0].axis('off')
+            
+            axs[1].imshow(thresh, cmap='gray')
+            axs[1].set_title(f'Segmentado - {methods[method][0]}')
+            axs[1].axis('off')
+            plt.tight_layout()
+            plt.show()
+            
+            if input("¿Guardar? (s/n): ").lower() == 's':
+                fname = input("Nombre: ").strip()
+                if fname:
+                    if not fname.endswith('.png'):
+                        fname += '.png'
+                    cv2.imwrite(fname, thresh)
+                    print(f"✓ Guardado: '{fname}'")
+                    
+        except Exception as e:
+            print(f" Error: {e}")
+}
+            
