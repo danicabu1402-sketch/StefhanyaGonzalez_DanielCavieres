@@ -464,6 +464,11 @@ class EstudioImaginologico:
 
         except Exception as e:
             print(f" Error en transformación morfológica: {e}")
+            
+    def save_object(self, path: str):
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+        print(f"[EstudioImaginologico]  Serializado: '{path}'")
 
 
             
