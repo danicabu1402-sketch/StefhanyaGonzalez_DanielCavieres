@@ -66,3 +66,30 @@ class DicomManager:
         print(f"[DicomManager]  Volumen: {self.volume.shape} (z,y,x)")
         self._build_metadata_df()
 
+
+    def _build_metadata_df(self):
+    
+        rows = []
+        for z, ds in self.sorted_slices_info:
+            rows.append({
+                'Filename': getattr(ds, 'filename', ''),
+                'InstanceNumber': getattr(ds, 'InstanceNumber', None),
+                'StudyDate': getattr(ds, 'StudyDate', None),
+                'StudyTime': getattr(ds, 'StudyTime', None),
+                'SeriesTime': getattr(ds, 'SeriesTime', None),
+                'Modality': getattr(ds, 'Modality', None),
+                'StudyDescription': getattr(ds, 'StudyDescription', None),
+                'PixelSpacing': str(getattr(ds, 'PixelSpacing', None)),
+                'SliceThickness': getattr(ds, 'SliceThickness', None),
+                'Rows': getattr(ds, 'Rows', None),
+                'Columns': getattr(ds, 'Columns', None),
+                'SliceLocation': z
+            })
+        self.metadata_df = pd.DataFrame(rows)
+
+    def save_metadata_csv(self, out_path: str) -> None:
+       
+        if self.metadata_df is None:
+            raise RuntimeError("Ejecute build_volume() primero.")
+        self.metadata_df.to_csv(out_path, index=False)
+        print(f"[DicomManager]  CSV guardado: '{out_path}'")
