@@ -87,14 +87,14 @@ class DicomManager:
             })
         self.metadata_df = pd.DataFrame(rows)
 
-    def save_metadata_csv(self, out_path: str) -> None:
+    def save_metadata_csv(self, out_path: str):
        
         if self.metadata_df is None:
             raise RuntimeError("Ejecute build_volume() primero.")
         self.metadata_df.to_csv(out_path, index=False)
         print(f"[DicomManager]  CSV guardado: '{out_path}'")
 
-    def get_pixel_spacing(self) -> Tuple[float, float]:
+    def get_pixel_spacing(self) :
 
         if not self.sorted_slices_info:
             raise RuntimeError("Ejecute build_volume() primero.")
@@ -102,10 +102,22 @@ class DicomManager:
         ps = getattr(ds, "PixelSpacing", None)
         return (float(ps[0]), float(ps[1])) if ps else (1.0, 1.0)
 
-    def get_slice_thickness(self) -> float:
-        
+    def get_slice_thickness(self):
+
         if not self.sorted_slices_info:
             raise RuntimeError("Ejecute build_volume() primero.")
         ds = self.sorted_slices_info[0][1]
         st = getattr(ds, "SliceThickness", None)
         return float(st) if st else 1.0
+    
+    def save_nifti(self, out_path: str):
+        
+        if self.volume is None:
+            raise RuntimeError("Ejecute build_volume() primero.")
+        px, py = self.get_pixel_spacing()
+        pz = self.get_slice_thickness()
+        affine = np.diag([px, py, pz, 1.0])
+        vol_nib = np.transpose(self.volume, (2, 1, 0))
+        nifti = nib.Nifti1Image(vol_nib, affine)
+        nib.save(nifti, out_path)
+        print(f"[DicomManager]  NIfTI guardado: '{out_path}'")
