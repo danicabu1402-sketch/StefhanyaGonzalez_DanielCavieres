@@ -121,3 +121,24 @@ class DicomManager:
         nifti = nib.Nifti1Image(vol_nib, affine)
         nib.save(nifti, out_path)
         print(f"[DicomManager]  NIfTI guardado: '{out_path}'")
+        
+class EstudioImaginologico:
+    
+    def __init__(self, dicom_manager: DicomManager):
+
+        if dicom_manager.volume is None:
+            raise RuntimeError("DicomManager debe tener volumen construido.")
+            
+        self.dicom_manager = dicom_manager
+        self.volume = dicom_manager.volume
+        
+        first_ds = dicom_manager.sorted_slices_info[0][1]
+        self.study_date = getattr(first_ds, 'StudyDate', 'N/A')
+        self.study_time = getattr(first_ds, 'StudyTime', 'N/A')
+        self.study_modality = getattr(first_ds, 'Modality', 'N/A')
+        self.study_description = getattr(first_ds, 'StudyDescription', 'N/A')
+        self.series_time = getattr(first_ds, 'SeriesTime', 'N/A')
+        self.duration_seconds = self._calc_duration_seconds(self.study_time, self.series_time)
+        self.shape = self.volume.shape
+        
+        print(f"[EstudioImaginologico]✓ {self.study_modality} - {self.study_description}")
