@@ -198,3 +198,12 @@ class EstudioImaginologico:
                      fontsize=14, fontweight='bold')
         plt.tight_layout()
         plt.show()
+
+
+    def _normalize_to_uint8(self, img: np.ndarray) :
+        imgf = img.astype(np.float32)
+        mn, mx = float(np.min(imgf)), float(np.max(imgf))
+        if mx == mn:
+            return np.zeros_like(imgf, dtype=np.uint8)
+        norm = (imgf - mn) / (mx - mn) * 255.0
+        return np.clip(norm, 0, 255).astype(np.uint8)
