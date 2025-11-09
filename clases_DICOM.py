@@ -141,4 +141,16 @@ class EstudioImaginologico:
         self.duration_seconds = self._calc_duration_seconds(self.study_time, self.series_time)
         self.shape = self.volume.shape
         
-        print(f"[EstudioImaginologico]✓ {self.study_modality} - {self.study_description}")
+        print(f"[EstudioImaginologico] {self.study_modality} - {self.study_description}")
+        
+    def _calc_duration_seconds(self, study_time: str, series_time: str) :
+        
+        try:
+            if not study_time or not series_time:
+                return None
+            fmt = "%H%M%S"
+            st = datetime.strptime(study_time.split('.')[0], fmt)
+            se = datetime.strptime(series_time.split('.')[0], fmt)
+            return (se - st).total_seconds()  
+        except Exception:
+            return None
