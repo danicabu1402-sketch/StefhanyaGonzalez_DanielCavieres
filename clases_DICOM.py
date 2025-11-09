@@ -21,8 +21,7 @@ class DicomManager:
         self.sorted_slices_info: List[Tuple[float, pydicom.dataset.FileDataset]] = []
         self.metadata_df: Optional[pd.DataFrame] = None
 
-    def load_folder(self) -> None:
-        """Carga todos los archivos DICOM válidos desde la carpeta especificada."""
+    def load_folder(self):
         files = sorted(glob.glob(os.path.join(self.folder_path, "*")))
         dicom_files = []
         
@@ -37,4 +36,33 @@ class DicomManager:
             raise FileNotFoundError(f"No se encontraron archivos DICOM en {self.folder_path}")
             
         self.dataset_list = dicom_files
-        print(f"[DicomManager] ✓ {len(self.dataset_list)} archivos DICOM cargados")
+        print(f"[DicomManager]  {len(self.dataset_list)} archivos DICOM cargados")
+
+
+    def build_volume(self) :
+       
+        if not self.dataset_list:
+            raise RuntimeError("No hay datasets. Ejecute load_folder() primero.")
+            
+        slices = []
+        for ds in self.dataset_list:
+            if hasattr(ds, "ImagePositionPatient") and ds.ImagePositionPatient:
+                z = float(ds.ImagePositionPatient[2])
+            elif hasattr(ds, "SliceLocation") and ds.SliceLocation:
+                z = float(ds.SliceLocation)
+            else:
+                z = 0.0
+            slices.append((z, ds))
+            
+        slices.sort(key=lambda x: x[0])
+        self.sorted_slices_info = slices
+        
+        try:
+            pixel_arrays = [s[1].pixel_array for s in slices]
+            self.volume = np.stack(pixel_arrays, axis=0).astype(np.float32)
+        except Exception as e:
+            raise RuntimeError(f"Error al reconstruir volumen: {e}")
+            
+        print(f"[DicomManager]  Volumen: {self.volume.shape} (z,y,x)")
+        self._build_metadata_df()
+
